@@ -1,0 +1,54 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+
+# Dados de produção (não commitar)
+api/database/*.DBF
+api/database/*.dbf
+api/database/import_history.json
+api/backup/
+api/logs/
+api/uploads/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Zip de deploy
+*.zip
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Ferramentas AI/desenvolvimento
+.agent/
+.agents/
+.codex/
+_bmad/
+_bmad-output/
+
+# Temporários
+scratch/
+tmp/
+
+# Legado
+financeiro-vogel-legacy/
+legacy-system/
+
+# Outros
+agf-this-project.md
+vogel-mapa-fontes-campos.md
+vogel-mdb-relatorio.md
+skills-lock.json
+test-build.js
+postcss.config.js.bak
