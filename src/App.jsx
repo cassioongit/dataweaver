@@ -33,7 +33,6 @@ function App() {
   const [isLoadingDB, setIsLoadingDB] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
   const [importHistory, setImportHistory] = useState([]);
-  const [, setSystemLogs] = useState([]);
 	  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 	  const [showHistoryDetailModal, setShowHistoryDetailModal] = useState(false);
 	  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
@@ -838,14 +837,6 @@ function App() {
       setSteps({ validation: 'pending', extraction: 'pending', matching: 'pending' });
       setFileInputKey(k => k + 1);
     }
-  };
-
-  const fetchLogs = async () => {
-    try {
-      const response = await apiFetch(resolveApiUrl('api/src/get-logs.php'));
-      const data = await response.json();
-      setSystemLogs(data);
-    } catch (err) {}
   };
 
   // Effect for fetching DB data when pagination, page size, search or sort changes
@@ -2013,7 +2004,7 @@ function App() {
 	                    </div>
 	                  </div>
 	                </div>
-                
+
 	                {importHistory.length > 0 ? (
 	                  <div className="grid grid-cols-1 gap-2">
 	                    {importHistory

@@ -18,6 +18,7 @@ $projectRoot = dirname($srcDir);
 require_once $srcDir . '/utils/Logger.php';
 require_once $srcDir . '/utils/Auth.php';
 require_once $srcDir . '/utils/ImportAudit.php';
+require_once $srcDir . '/utils/ImportHistory.php';
 require_once $srcDir . '/utils/Cors.php';
 require_once $srcDir . '/utils/TextEncoding.php';
 require_once $projectRoot . '/vendor/csvtodbf/CharSVtoDbf.php';
@@ -95,6 +96,15 @@ function ensure_directory($path)
     if (!is_writable($path)) {
         @chmod($path, 0777);
     }
+}
+
+function persist_uploaded_file(string $sourcePath, string $destinationPath): bool
+{
+    if (PHP_SAPI === 'cli') {
+        return copy($sourcePath, $destinationPath);
+    }
+
+    return move_uploaded_file($sourcePath, $destinationPath);
 }
 
 function cleanup_directory($path, $limit, $logger)
@@ -277,7 +287,7 @@ function normalize_uploaded_rows($filePath, $extension)
                 continue;
             }
 
-            $header = str_getcsv($line, ';', '"');
+            $header = str_getcsv($line, ';', '"', '\\');
             if (isset($header[1]) && $header[1] === 'Nome' && isset($header[19]) && $header[19] === 'Indicado por') {
                 $headerMatched = true;
                 break;
@@ -300,7 +310,7 @@ function normalize_uploaded_rows($filePath, $extension)
             if (trim($line) === '') {
                 continue;
             }
-            $rows[] = str_getcsv($line, ';', '"');
+            $rows[] = str_getcsv($line, ';', '"', '\\');
         }
 
         return $rows;
@@ -328,7 +338,7 @@ $uploadsDir = $projectRoot . '/uploads';
 ensure_directory($uploadsDir);
 
 $uploadedFile = $uploadsDir . '/' . basename($_FILES['upl']['name']);
-if (!move_uploaded_file($_FILES['upl']['tmp_name'], $uploadedFile)) {
+if (!persist_uploaded_file($_FILES['upl']['tmp_name'], $uploadedFile)) {
     json_error_response('Não foi possível salvar o arquivo enviado', ['dest' => $uploadedFile]);
 }
 
@@ -648,31 +658,6 @@ try {
         $workingDbfPath = null;
         $logger->info('[UPLOAD] Header da base publicada após importação', \Vogel\Utils\NativeDbf::inspectHeader($dbfPath));
 
-        $historyFile = $projectRoot . '/database/import_history.json';
-        $history = [];
-        if (file_exists($historyFile)) {
-            $history = json_decode(file_get_contents($historyFile), true) ?: [];
-        }
-
-        array_unshift($history, [
-            'id' => uniqid(),
-            'timestamp' => date('Y-m-d H:i:s'),
-            'file_name' => $_FILES['upl']['name'] ?? 'Manual Upload',
-            'added' => count($addedPatients) - $updatedPatientsCount,
-            'updated' => $updatedPatientsCount,
-            'duplicates' => $duplicatesCount,
-            'errors' => $errorCount,
-            'total_read' => $processedItems,
-            'patients' => $addedPatients,
-            'status' => 'completed',
-            'audit_file' => null,
-        ]);
-
-        if (count($history) > 100) {
-            $history = array_slice($history, 0, 100);
-        }
-
-        file_put_contents($historyFile, json_encode($history, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
     } else {
         if ($workingDbfPath && file_exists($workingDbfPath)) {
             @unlink($workingDbfPath);
@@ -714,6 +699,21 @@ try {
     } catch (Exception $e) {
         $logger->error('[UPLOAD] Falha ao gravar auditoria', ['error' => $e->getMessage()]);
     }
+
+    $historyFile = $projectRoot . '/database/import_history.json';
+    \Vogel\Utils\ImportHistory::prependEntry($historyFile, [
+        'id' => uniqid(),
+        'timestamp' => date('Y-m-d H:i:s'),
+        'file_name' => $_FILES['upl']['name'] ?? 'Manual Upload',
+        'added' => count($addedPatients) - $updatedPatientsCount,
+        'updated' => $updatedPatientsCount,
+        'duplicates' => $duplicatesCount,
+        'errors' => $errorCount,
+        'total_read' => $processedItems,
+        'patients' => $addedPatients,
+        'status' => $hasChanges ? 'completed' : 'no_changes',
+        'audit_file' => $auditFile ? str_replace($projectRoot . '/', '', $auditFile) : null,
+    ]);
 
     $logger->info('Processamento concluído', [
         'added' => count($addedPatients) - $updatedPatientsCount,

@@ -7,6 +7,7 @@
 
 header('Content-Type: application/json');
 require_once __DIR__ . '/utils/Cors.php';
+require_once __DIR__ . '/utils/ImportHistory.php';
 \Vogel\Utils\Cors::apply();
 date_default_timezone_set('America/Sao_Paulo');
 error_reporting(E_ALL);
@@ -20,11 +21,6 @@ require_once __DIR__ . '/utils/Auth.php';
 $currentUser = \Vogel\Utils\Auth::requireAuthenticatedUser();
 unset($currentUser);
 
-if (!file_exists($historyFile)) {
-    echo json_encode([]);
-    exit;
-}
-
-$history = json_decode(file_get_contents($historyFile), true) ?: [];
+$history = \Vogel\Utils\ImportHistory::read($historyFile);
 
 echo json_encode($history, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

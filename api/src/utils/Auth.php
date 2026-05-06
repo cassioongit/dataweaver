@@ -6,6 +6,11 @@ class Auth
 {
     public static function requireAuthenticatedUser(): array
     {
+        $cliUser = self::getCliTestUser();
+        if ($cliUser !== null) {
+            return $cliUser;
+        }
+
         // Ensure `.env.local` is available when running the PHP built-in server in dev.
         // This avoids "backend auth not configured" failures when env vars weren't exported.
         require_once __DIR__ . '/Dotenv.php';
@@ -47,6 +52,25 @@ class Auth
         }
 
         return $user;
+    }
+
+    private static function getCliTestUser(): ?array
+    {
+        if (PHP_SAPI !== 'cli') {
+            return null;
+        }
+
+        $raw = getenv('DATAWEAVER_CLI_TEST_USER_JSON');
+        if ($raw === false || trim($raw) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded) || empty($decoded['id'])) {
+            self::fail('Usuario de teste CLI invalido', 500);
+        }
+
+        return $decoded;
     }
 
     private static function getEnvValue(array $names): ?string
